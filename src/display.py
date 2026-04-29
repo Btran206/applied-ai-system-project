@@ -70,3 +70,4 @@ def print_explanation(text: str) -> None:
         if body_text:
             print(textwrap.fill(body_text, width=56, initial_indent="    ", subsequent_indent="    "))
     print()
+    print(f"{DIVIDER}\n")

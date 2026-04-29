@@ -41,8 +41,6 @@ def main() -> None:
         except Exception as e:
             print(f"  [Error] Could not generate explanation: {e}")
 
-        print(f"{DIVIDER}\n")
-
 
 # --- Original hardcoded test cases (kept for reference) ---
 # user_prefs = {"genre": "lofi"}
