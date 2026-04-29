@@ -210,7 +210,7 @@ def recommend_songs(user_prefs: Dict, songs: List[Dict], k: int = 5) -> List[Tup
     elif mood in LOW_VALENCE_MOODS:
         valence_direction = -1   # ties broken by lower valence
     else:
-        valence_direction = 0    # no mood context — leave ties as stable sort
+        valence_direction = 0    # no mood context leave ties as stable sort
 
     scored.sort(key=lambda x: (x[1], valence_direction * x[0].get("valence", 0)), reverse=True)
     return scored[:k]

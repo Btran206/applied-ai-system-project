@@ -1,28 +1,49 @@
-# 🎵 Music Recommender Simulation
+# 🎵 AI Music Recommender
 
-## Project Summary
+> **GitHub:** [github.com/Btran206/applied-ai-system-project](https://github.com/Btran206/applied-ai-system-project/tree/main)
 
-I built a simple music recommender that scores songs against a user's taste profile using four features: genre, mood, energy level, and acousticness. Each feature carries a fixed weight, and the system ranks every song by how closely it matches the user's preferences, then returns the top k results.
+## Original Project
+
+This project is an extension of the **Music Recommender Simulation**. The original system scored songs against a user's taste profile using four weighted features: genre, mood, energy, and acousticness. It then returned a ranked list of top matches. The old system functioned on hardcoded preference dictionaries and I wanted to improve on this with an AI layer.
 
 ---
 
-## How The System Works
+## New AI Feature
 
-Unlike Spotify or YouTube, which uses advanced machine learning techniques that score from various features like clicks, skips, likes, and sound profile before running them through a complex ML pipeline, my recommender takes a simpler approach. It doesn't know anything about what other people like. It only knows the current user, and tries to find songs that match their taste directly.
+This improved system uses the original recommender with a natural language interface powered by Claude. Instead of hardcoding preferences, users provide a description of the music they want in plain English. The AI layer then parses that into structured preferences dictionary, feeds them into the model, and then generates a personalized Snoop Dogg-style explanation for each recommendation.
 
-Each song carries a set of descriptive features like genre, mood, energy level, acousticness, tempo, valence, and danceability. The user profile stores the things that matter most for example, their favorite genre and mood, how energetic they like their music, and whether they tend to prefer acoustic sounds.
+---
 
-When scoring a song, the system compares those profile preferences against the song's features using a simple weighted formula. Genre match matters most (35%), followed by mood (25%), energy (25%), and acousticness (15%). Valence, danceability, and tempo are will be used for future experimentation.
+## Architecture Overview
 
-Once every song has a score, the system sorts them highest to lowest and returns the top 5. The final score sits between 0.0 and 1.0, which represents the predicted percentage match for the user preference and the song.
+1. **`ai_layer.py`** — Handles all Claude API calls.
+   - `parse_user_query(text)`: sends the user's natural language input to Claude Haiku and returns a validated JSON preferences dict (`genre`, `mood`, `energy`, `acoustic`).
+   - `explain_recommendations(query, results)`: sends the top-k results back to Claude and returns a Snoop Dogg-style explanation for each song.
 
-![Recommender Flowchart](images/recommender_flowchart_starter.png)
+2. **`recommender.py`** — The scoring engine that takes a preferences dict and a song catalog, scores every song by weighted feature matches, and returns the top k results.
+
+3. **`display.py`** — All terminal formatting including ASCII layout, column alignment, and explanation parsing.
+
+4. **`main.py`** —  Read–Eval–Print Loop(REPL). Gets input, calls `ai_layer` → `recommender` → `ai_layer` → `display` in sequence.
+
+**Data flow:**
+```
+User input (plain English)
+  → parse_user_query()       [Claude Haiku]
+  → structured preferences   {genre, mood, energy, acoustic}
+  → recommend_songs()        [scoring]
+  → top-k results            [(song, score)]
+  → explain_recommendations() [Claude Haiku]
+  → formatted terminal output [display.py]
+```
+
+---
 
 ## Known Biases
 
 - Genre has a 35% weighting, so a genre match alone can outscore a song that nails mood, energy, and acousticness but has the wrong genre.
-- Genre and mood use exact string comparison, so indie pop ≠ pop scores 0 despite being closely related. There is no concept of genre or mood proximity. I can address this with transformations to the song genre before being fed into the recommender.
-- Valence, danceability, and tempo aren't being utilized in the recommender. A deeply sad song and an upbeat one score identically if their other features match, which can produce recommendations that feel tonally wrong. I will experiment with these features if I have the time.
+- Genre and mood proximity is partially addressed via `GENRE_CLUSTERS` and `MOOD_CLUSTERS` (adjacent genres earn 50% credit), but the clusters are manually defined and incomplete.
+- Valence, danceability, and tempo aren't primary scoring features. A deeply sad song and an upbeat one score identically if their other features match, which can produce recommendations that feel tonally wrong.
 
 ---
 
@@ -38,113 +59,104 @@ Once every song has a score, the system sorts them highest to lowest and returns
   .venv\Scripts\activate         # Windows
   ```
 
-2. Install dependencies
+2. Install dependencies:
 
-```bash
-pip install -r requirements.txt
-```
+  ```bash
+  pip install -r requirements.txt
+  ```
 
-3. Run the app:
+3. Set your Anthropic API key:
 
-```
-python src/main.py
-```
+  ```bash
+  # Mac or Linux
+  export ANTHROPIC_API_KEY=your-key-here
 
-Example Output:
+  # Windows (Command Prompt)
+  set ANTHROPIC_API_KEY=your-key-here
 
-![Terminal Output](images/terminal_output.png)
+  # Windows (PowerShell)
+  $env:ANTHROPIC_API_KEY="your-key-here"
+  ```
+
+4. Run the app:
+
+  ```bash
+  python src/main.py
+  ```
 
 ### Running Tests
 
-Run the starter tests with:
-
 ```bash
-pytest
+pytest tests/test_ai_layer.py -v
 ```
 
+
+### Video Walkthrough
+[Demo](https://www.loom.com/share/fbdeadb906284ae5924dd72bfd8bf4c1)
+ 
 ---
 
-## Experiments
+## Sample Interactions
 
-I will be testing edge cases and model sensitivity within this section. The first image will be the default model while the second image will be the model with a weight shift from genre dominant to energy dominant.
+### Example 1 — High Energy
 
-### Edge Case 1 — Single categorical field
+![Example 1](assets/example_output.png)
 
-Because Python's sort is stable, tied songs are returned in their original CSV insertion order. The system produces a ranked list with zero real differentiation among the top results. There is no tiebreaker logic, so the winner among equally scored songs is an determined soley by data order, not preference alignment. The lofi profile returns the three lofi songs Midnight Coding, Library Rain, and Focus Flow which are all quiet, low-energy, and instrumental. The remaining two slots fill with whatever comes first in the CSV regardless of fit.
+### Example 2 — Low Energy
 
-![Test 1](images/test1.png)
-
-After running a weight shift from genre's .35 to .175 and energy from .25 to .425, the single genre bias remains the same. Since energy is not in this user profile the raised energy weight has nothing to act on, so the same three lofi songs appear at the top with a lower printed score. The composition of results does not change at all, only the numbers do.
-
-![Test 1](images/test1V2.png)
-
----
-
-### Edge Case 2 — Genre and mood that don't exist
-
-The system returns results, but the compressed score means all songs cluster closely together. Small differences in energy proximity become the primary differentiator, which can surface non-obvious winners (a mid energy synthwave track Night Drive beating a folk track Empty Porch because because intuitively, folk should be closer to bossa nova and zen). This shows how heavily the system depends on categorical hits to produce intuitive results. The default model surfaces Night Drive (synthwave, mid to high energy) and Crown Up (hip-hop, mid to high energy) despite the intent being closer to gentle bossa nova.
-
-![Test 2](images/test2.png)
-
-For test case 2  the system still relies on categorical features to drive intuitive results. Another issue came up here which exposes tiebreaker logic again because rankings are sorted purely by insertion order. With energy weighted more heavily, songs closest to 0.5 energy shifts rankings for mid tempo tracks like Velvet Hours (r&b) and Dirt Road Summer (country). The genre is still completely wrong relative to bossa nova, but the energy signal now dominates the full 0.40 of available continuous weight and produces a noticeably different list.
-
-![Test 2](images/test2V2.png)
+![Example 2](assets/example_output2.png)
 
 ---
 
-### Edge Case 3 — Contradictory / self-fighting profile 
+## Design Decisions
 
-When categorical weights sum to 0.60 the remaining 0.40 of continuous features cannot overcome even at maximum disagreement. A user who genuinely wants quiet acoustic music but states metal/aggressive as their genre/mood will consistently receive recommendations that contradict their continuous preferences. This confirms the over reliance on categorical matching noted in Known Biases. The default model puts Iron Collapse which is a loud, fast, and nearly non-acoustic metal track at the top of the list for a user who asked for energy=0.0 and acoustic=True.
+**Why is the recommender logic so simple?**
+This is only a starter project and I wanted something that wouldn't take too much time to implement. A future iteration of this project would include a larger dataset with more features and user data. The current dataset isn't sufficient to train a complex ML pipeline.
 
-![Test 3](images/test3.png)
+**Why Claude Haiku for the AI calls?**
+Haiku is fast and inexpensive. The input parsing prompt asks for a fixed schema JSON object which doesn't need a larger model. I also kept the Snoop Dogg responses short(1-2 sentences) which is also why Haiku is a good fit.
 
-For test case 3, the recommendations look alot more balanced. Iron Collapse was not skewed to the top for having a dominating genre match when presented with low energy and acoustic profile. With genre weight halved and energy weight raised, low energy and highly acoustic songs like Empty Porch (folk) and Raindrop Sonata (classical) now outscore Iron Collapse because they match the continuous preferences.
-
-![Test 3](images/test3V2.png)
-
-### Refined Model - Genre/Mood Proximity, Valence Tiebreaker, and Soft Acoustic target
-
-I wanted to see how adding feature proximity, tiebreaker logic, soft multipliers would affect the above test cases. First image is the old model and the second image is the refined model.
-
-### Edge Case 1 — Single categorical field
-
-![Test 1](images/test1.png)
-
-![Test 1](images/test1V3.png)
-
-We can see that new songs are now surfaced due to the genre/mood proximity. The near-match songs (ambient, jazz, classical) now score 0.175 and fill out the rest of the top 5 where previously only 3 lofi songs scored above 0. However, since there is no mood in this user profile, valence_direction is set to 0 and the tiebreaker does not fire. The near-match songs are still ordered by CSV insertion.
-
-### Edge Case 2 — Genre and mood that don't exist
-
-![Test 2](images/test2.png)
-
-![Test 2](images/test2V3.png)
-
-The soft acoustic target paired with valence tiebreaker definitely changed the outputs. But having no genre or mood context won't really give intuitive results still. Worth noting that the tiebreaker was not utilized here  because zen is not in either the high or low valence mood sets, so valence_direction is 0 and any output change is purely from the soft acoustic target.
-
-### Edge Case 3 — Contradictory / self-fighting profile 
-
-![Test 3](images/test3.png)
-
-![Test 3](images/test3V3.png)
-
-Genre still dominates after refining the model but the results differ. The key shift is that Storm Runner (rock, intense) now enters the top results via proximity 0.175 from rock metal near-match plus 0.125 from intense aggressive near-match gives it 0.30 categorical credit before energy or acoustic are even scored. That is enough to push it into the top 5 despite having near zero energy and acoustic fit. Iron Collapse's total score actually went slightly up rather than down because the soft acoustic target of 0.7 is less punishing for acousticness=0.03.
+**Trade-offs:**
+- Fixed weights (genre 35%, mood 25%, energy 25%, acoustic 15%) is not data driven. This reflects an opinion about what matters, not what users actually respond to.
+- The 20 song dataset is definitely limititation for this project. A larger dataset would help with the proximity scoring and tiebreaker logic.
+- Every query makes two API calls (parse + explain), so latency is noticeable. Caching parsed preferences for repeated queries would help.
 
 ---
 
-## Limitations and Risks
+## Testing Summary
 
-The recommender operates on a dataset of only 20 songs, which is too small to find meaningful diversity or handle niche preferences. It relies entirely on four weighted features (genre, mood, energy, acousticness) with no learning from actual user behavior, so the weights are fixed guesses rather than data driven signals. Categorical features like genre and mood are binary where a song either matches or it doesn't which means the system cannot reason about song proximity (jazz being closer to blues than to metal). The model also has no tiebreaker logic, so songs with identical scores are ranked by their insertion order in the CSV rather than any preference signal.
+**Evaluation script (`tests/test_recommender.py`)**
+
+The test suite validates `parse_user_query()` across eight inputs using two layers:
+
+- **Schema tests:** Every input — including gibberish, minimal input, and contradictory preferences — must return a dict with all four required fields, a valid genre and mood from the allowed lists, energy in `[0.0, 1.0]`, and acoustic as a boolean. These tests catch cases where the model hallucinates a field name or returns an out-of-range value.
+- **Semantic tests:** Normal inputs are checked for reasonable interpretations — "chill acoustic study music" should produce `energy < 0.6` and `acoustic = True`. Failures here are warnings, not hard errors, since the model may reasonably interpret ambiguous phrasing differently.
+
+**What worked:** Schema validation reliably catches malformed outputs.
+
+**What didn't:** Semantic checks are inherently ambiguous. "Smooth jazz for a late night drive" sometimes comes back with `mood: melancholic` instead of `relaxed` both are valid interpretations.
+
+**What I learned:** Testing LLM outputs is different from testing deterministic functions. Schema validation gives you a hard pass/fail boundary, but beyond that you're asserting probabilities, not guarantees.
+
+![Test](assets/ai_eval.png)
 
 ---
 
 ## Reflection
 
-Building this recommender made me realize that for my version at least is really just a formalized opinion. I decided what features matter, assigned them weights, and that choice shapes the result the system produces. Genre being worth 35% is a design decision and users will never see it or know why. This is the part that stuck with me most because the math looks objective on the surface, but the assumptions are the real drivers for these systems.
+**Using AI during development**
 
-The bias was harder to see until I ran the edge cases and exposed these glaring issues. The binary categorical matching means the system has no sense of closeness between genres for example jazz and blues score the same as jazz and metal when neither matches. This can be a disadvantage for users with niche or cross genre tastes. Bias also presents itself with feature dominance in this case genre which overshadows other features like energy and acousticness even if they are a perfect fit. I didn't designed this model with these consequences in mind, more so how I important I felt these features were. In a larger system trained on user behavior, that same problem can show up if certain genres or moods are underrepresented in the training data. The model will learn to underserve those users and nobody will notice.
+I used Claude as a development assistant throughout this project for prompting design, debugging, and architecture decisions. When designing `parse_user_query`, I iterated on the prompt several times to get the model to return a clean JSON. Claude also helped me work through the display formatting problems, particularly when `_print_explanation` was failing to parse the AI's output correctly. I also used claude to improve on the architecture, by suggested separating all formatting logic into `display.py` early on, which made the `main.py` way cleaner.
 
+**Helpful suggestion:** The whole system design was basically brainstormed by claude and I just chose which one to implement.
 
----
+**Flawed suggestion:** The first implementation of `_print_explanation` used a regex that didn't assume that each song entry was on its own line (`**1. "Title"**`) followed by the explanation on the next line. This caused inconsistent terminal outputs. The regex was rewritten twice and also settled on a block collection approach that handles the Claude output correctly.
 
+**Limitations and future improvements**
+
+The current system has two limitations worth addressing. First, the 20 song catalog is too small to give meaningful recommendations. The proximity scoring and tiebreaker logic would matter much more if I had a larger dataset. Second, the AI parsing step maps the user's input to a fixed vocabulary of genres and moods, which limits any kind of nuance in user preference. A future improvement would be to embed songs and user queries in a shared vector space instead of exact string matching.
+
+**As an AI engineer**
+
+This project reflects how I think about building with AI: from planning, prototyping, debugging and eventually completing a finished product, I don't just rely on AI to build the system end to end, I plan and execute with AI as an assistant. I'm also someone who thinks reliability matters from the start. The pytests were created so that I know exactly how I needed to refine the prompts for claude to get the desired outputs. That mindset, knowing where AI helps and where it adds risk, is what I want to carry into larger projects.
 
