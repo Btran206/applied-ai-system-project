@@ -186,8 +186,7 @@ def score_song(user_prefs: Dict, song: Dict) -> Tuple[float, List[str]]:
         reasons.append("energy (skipped)")
 
     if "acoustic" in user_prefs:
-        target_acousticness = 0.7 if user_prefs["acoustic"] else 0.3
-        acoustic_contrib = 0.15 * (1 - abs(song["acousticness"] - target_acousticness))
+        acoustic_contrib = 0.15 * (1 - abs(song["acousticness"]))
         score += acoustic_contrib
         reasons.append(f"acoustic fit ({acoustic_contrib:.2f})")
     else:
