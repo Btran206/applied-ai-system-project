@@ -7,43 +7,41 @@ Requires:  ANTHROPIC_API_KEY environment variable to be set.
 
 from recommender import load_songs, recommend_songs
 from ai_layer import parse_user_query, explain_recommendations
+from display import DIVIDER, print_banner, print_prefs, print_picks, print_explanation
 
 
 def main() -> None:
     songs = load_songs("data/songs.csv")
-
-    print("\n=== AI Music Recommender ===")
-    print("Describe the music you're in the mood for, or type 'quit' to exit.\n")
+    print_banner()
 
     while True:
         user_query = input("You: ").strip()
         if user_query.lower() in ("quit", "exit", "q"):
-            print("Goodbye!")
+            print("\nGoodbye!")
             break
         if not user_query:
             continue
 
-        print("\nParsing your request...")
+        print("\n  Parsing your request...")
         try:
             user_prefs = parse_user_query(user_query)
         except Exception as e:
-            print(f"Could not parse your request: {e}\n")
+            print(f"\n  [Error] Could not parse request: {e}\n")
             continue
 
-        print(f"Understood preferences: {user_prefs}")
+        print_prefs(user_prefs)
 
         recommendations = recommend_songs(user_prefs, songs, k=5)
+        print_picks(recommendations)
 
-        print("\nTop 5 recommendations:\n")
-        for song, score, _ in recommendations:
-            print(f"  {song['title']} by {song['artist']} (score: {score:.2f})")
-
-        print("\nGenerating explanations...")
+        print(f"\n  Generating explanations...")
         try:
             explanation = explain_recommendations(user_query, recommendations)
-            print(f"\n{explanation}\n")
+            print_explanation(explanation)
         except Exception as e:
-            print(f"Could not generate explanation: {e}\n")
+            print(f"  [Error] Could not generate explanation: {e}")
+
+        print(f"{DIVIDER}\n")
 
 
 # --- Original hardcoded test cases (kept for reference) ---
