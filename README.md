@@ -1,6 +1,6 @@
 # 🎵 AI Music Recommender
 
-> **GitHub:** [github.com/Btran206/applied-ai-system-project](https://github.com/Btran206/applied-ai-system-project/tree/main)
+> [Code](https://github.com/Btran206/applied-ai-system-project/tree/main/src)
 
 ## Original Project
 
